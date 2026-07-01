@@ -65,7 +65,7 @@ body {
   padding: 6px 14px; border-radius: 2px; border: 1px solid #ccd8db;
   background: #fff; cursor: pointer; transition: border-color 0.18s, background 0.18s; color: #23685b; white-space: nowrap;
 }
-.toggle-btn:hover { background: transparent; border-color: #404F54; }
+.toggle-btn:hover { background: transparent; border-color: #23685b; }
 .toggle-btn.active { color: #fff; border-color: transparent; background: #23685b; }
  
 /* Chart */
@@ -83,7 +83,6 @@ body {
 .col-total {
   font-family: 'Inter', sans-serif; font-weight: 700;
   fill: #404F54; font-size: 12px;
-  transition: opacity 0.2s ease;
 }
  
 /* Legend */

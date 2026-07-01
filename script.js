@@ -2,6 +2,18 @@ const YEAR_DATA = {"groupOrder":["Termination","Resignation","Demotion","Suspens
  
 const PARTIAL_YEARS = new Set([]);
 const fmt = n => n.toLocaleString('en-US');
+
+const STAGGER_ORDER = [...YEAR_DATA.groupOrder].reverse();
+const SEG_DURATION = 1000;
+const STAGGER_STEP = 6;
+const TOTAL_DURATION = (STAGGER_ORDER.length - 1) * STAGGER_STEP + SEG_DURATION;
+
+const ease = t => {
+  const c1 = 0.5, c3 = c1 + 1;
+  return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
+};
+
+let animGen = 0;
  
 // Category totals across all years (hearing-level), for legend ordering/labels
 const catTotals = {};
@@ -63,8 +75,11 @@ function render() {
     const cx = M.left + slot * i + slot / 2;
     const x = cx - barW / 2;
  
-    // order segments largest-to-smallest so biggest sits at the bottom
-    const segs = yObj.segments.slice().sort((a, b) => b.count - a.count);
+    // order segments by groupOrder
+    const segs = YEAR_DATA.groupOrder
+      .map(g => yObj.segments.find(s => s.group === g))
+      .filter(Boolean)
+      .reverse();
  
     // mentions sum (a hearing can appear in >1 category)
     const ms = segs.reduce((a, s) => a + s.count, 0) || 1;
@@ -86,7 +101,8 @@ function render() {
       const rect = el('rect', {
         x: x, y: yPos, width: barW, height: Math.max(segH, 0),
         fill: s.color, class: 'seg' + (dimmed ? ' dim' : ''),
-        'data-year': yObj.year, 'data-group': s.group
+        'data-year': yObj.year, 'data-group': s.group,
+        'data-final-y': yPos, 'data-final-height': Math.max(segH, 0)
       }, svg);
       if (!dimmed) {
         rect.addEventListener('mousemove', (ev) => showTip(ev, yObj, s, ms));
@@ -110,9 +126,8 @@ function render() {
     // total cases above bar (count mode only) — sits exactly at bar top
     if (mode === 'count') {
       const topY = M.top + plotH - (yObj.total / yTop) * plotH;
-      const lbl = el('text', { x: cx, y: topY - 6, 'text-anchor': 'middle', class: 'col-total' }, svg);
+      const lbl = el('text', { x: cx, y: topY - 6, 'text-anchor': 'middle', class: 'col-total', opacity: 0 }, svg);
       lbl.textContent = yObj.total;
-      lbl.style.opacity = '0';
     }
   });
  
@@ -178,39 +193,51 @@ document.querySelectorAll('.toggle-btn').forEach(btn => {
   });
 });
 
-function setupClip() {
+function hideBars() {
   const baseline = M.top + plotH;
-  const defs = el('defs', {}, svg);
-  const clipPath = el('clipPath', { id: 'bars-reveal' }, defs);
-  const clipRect = el('rect', { x: M.left, y: baseline, width: plotW, height: 0 }, clipPath);
-  Array.from(svg.querySelectorAll('.seg')).forEach(r => r.setAttribute('clip-path', 'url(#bars-reveal)'));
-  return clipRect;
+  Array.from(svg.querySelectorAll('.seg')).forEach(rect => {
+    rect.setAttribute('y', baseline);
+    rect.setAttribute('height', 0);
+  });
+  Array.from(svg.querySelectorAll('.col-total')).forEach(l => l.setAttribute('opacity', '0'));
 }
 
-function animateClip(clipRect) {
+function animateBars() {
+  const gen = ++animGen;
   const baseline = M.top + plotH;
-  const duration = 1600;
   const start = performance.now();
-  const ease = t => {
-    const c1 = 1.4, c3 = c1 + 1;
-    return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
-  };
-  function frame(now) {
-    const t = Math.min((now - start) / duration, 1);
-    const h = plotH * ease(t);
-    clipRect.setAttribute('y', baseline - h);
-    clipRect.setAttribute('height', h);
-    if (t >= 0.88) {
-      Array.from(svg.querySelectorAll('.col-total')).forEach(l => l.style.opacity = '1');
-    }
-    if (t < 1) {
-      requestAnimationFrame(frame);
-    }
-  }
-  requestAnimationFrame(frame);
-}
 
-function animateBars() { animateClip(setupClip()); }
+  Array.from(svg.querySelectorAll('.seg')).forEach(rect => {
+    const finalY = parseFloat(rect.dataset.finalY);
+    const finalH = parseFloat(rect.dataset.finalHeight);
+    const delay = STAGGER_ORDER.indexOf(rect.dataset.group) * STAGGER_STEP;
+    rect.setAttribute('y', baseline);
+    rect.setAttribute('height', 0);
+    function frame(now) {
+      if (gen !== animGen) return;
+      const elapsed = now - start - delay;
+      if (elapsed < 0) { requestAnimationFrame(frame); return; }
+      const t = Math.min(elapsed / SEG_DURATION, 1);
+      const e = ease(t);
+      rect.setAttribute('height', Math.max(finalH * e, 0));
+      rect.setAttribute('y', baseline + (finalY - baseline) * e);
+      if (t < 1) requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+  });
+
+  const totals = Array.from(svg.querySelectorAll('.col-total'));
+  totals.forEach(l => l.setAttribute('opacity', '0'));
+  const labelStart = 0.75;
+  function labelFrame(now) {
+    if (gen !== animGen) return;
+    const t = Math.min((now - start) / TOTAL_DURATION, 1);
+    const op = Math.max(0, Math.min(1, (t - labelStart) / (1 - labelStart)));
+    totals.forEach(l => l.setAttribute('opacity', op));
+    if (t < 1) requestAnimationFrame(labelFrame);
+  }
+  requestAnimationFrame(labelFrame);
+}
 
 const xAxisSentinel = document.createElement('div');
 xAxisSentinel.style.cssText = 'position:absolute;bottom:0;left:0;width:1px;height:1px;pointer-events:none;';
@@ -220,10 +247,10 @@ let chartAnimated = false;
 const observer = new IntersectionObserver(entries => {
   if (entries[0].isIntersecting && !chartAnimated) {
     chartAnimated = true;
-    animateClip(initialClipRect);
+    animateBars();
   }
 }, { threshold: 0 });
 
 render();
-const initialClipRect = setupClip();
+hideBars();
 observer.observe(xAxisSentinel);

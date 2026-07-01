@@ -199,13 +199,17 @@ function animateBars() {
   requestAnimationFrame(frame);
 }
 
+const xAxisSentinel = document.createElement('div');
+xAxisSentinel.style.cssText = 'position:absolute;bottom:0;left:0;width:1px;height:1px;pointer-events:none;';
+chartArea.appendChild(xAxisSentinel);
+
 let chartAnimated = false;
 const observer = new IntersectionObserver(entries => {
   if (entries[0].isIntersecting && !chartAnimated) {
     chartAnimated = true;
     animateBars();
   }
-}, { threshold: 0.15 });
+}, { threshold: 0 });
 
 render();
-observer.observe(chartArea);
+observer.observe(xAxisSentinel);

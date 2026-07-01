@@ -177,12 +177,17 @@ document.querySelectorAll('.toggle-btn').forEach(btn => {
   });
 });
 
-function animateBars() {
+function setupClip() {
   const baseline = M.top + plotH;
   const defs = el('defs', {}, svg);
   const clipPath = el('clipPath', { id: 'bars-reveal' }, defs);
   const clipRect = el('rect', { x: M.left, y: baseline, width: plotW, height: 0 }, clipPath);
   Array.from(svg.querySelectorAll('.seg')).forEach(r => r.setAttribute('clip-path', 'url(#bars-reveal)'));
+  return clipRect;
+}
+
+function animateClip(clipRect) {
+  const baseline = M.top + plotH;
   const duration = 1300;
   const start = performance.now();
   const ease = t => {
@@ -199,6 +204,8 @@ function animateBars() {
   requestAnimationFrame(frame);
 }
 
+function animateBars() { animateClip(setupClip()); }
+
 const xAxisSentinel = document.createElement('div');
 xAxisSentinel.style.cssText = 'position:absolute;bottom:0;left:0;width:1px;height:1px;pointer-events:none;';
 chartArea.appendChild(xAxisSentinel);
@@ -207,9 +214,10 @@ let chartAnimated = false;
 const observer = new IntersectionObserver(entries => {
   if (entries[0].isIntersecting && !chartAnimated) {
     chartAnimated = true;
-    animateBars();
+    animateClip(initialClipRect);
   }
 }, { threshold: 0 });
 
 render();
+const initialClipRect = setupClip();
 observer.observe(xAxisSentinel);

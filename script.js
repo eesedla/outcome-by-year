@@ -110,8 +110,9 @@ function render() {
     // total cases above bar (count mode only) — sits exactly at bar top
     if (mode === 'count') {
       const topY = M.top + plotH - (yObj.total / yTop) * plotH;
-      el('text', { x: cx, y: topY - 6, 'text-anchor': 'middle', class: 'col-total' }, svg)
-        .textContent = yObj.total;
+      const lbl = el('text', { x: cx, y: topY - 6, 'text-anchor': 'middle', class: 'col-total' }, svg);
+      lbl.textContent = yObj.total;
+      lbl.style.opacity = '0';
     }
   });
  
@@ -188,7 +189,7 @@ function setupClip() {
 
 function animateClip(clipRect) {
   const baseline = M.top + plotH;
-  const duration = 1300;
+  const duration = 1600;
   const start = performance.now();
   const ease = t => {
     const c1 = 1.4, c3 = c1 + 1;
@@ -199,7 +200,12 @@ function animateClip(clipRect) {
     const h = plotH * ease(t);
     clipRect.setAttribute('y', baseline - h);
     clipRect.setAttribute('height', h);
-    if (t < 1) requestAnimationFrame(frame);
+    if (t >= 0.88) {
+      Array.from(svg.querySelectorAll('.col-total')).forEach(l => l.style.opacity = '1');
+    }
+    if (t < 1) {
+      requestAnimationFrame(frame);
+    }
   }
   requestAnimationFrame(frame);
 }

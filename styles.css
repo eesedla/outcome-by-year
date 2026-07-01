@@ -83,6 +83,7 @@ body {
 .col-total {
   font-family: 'Inter', sans-serif; font-weight: 700;
   fill: #404F54; font-size: 12px;
+  transition: opacity 0.2s ease;
 }
  
 /* Legend */

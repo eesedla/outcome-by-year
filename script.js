@@ -173,6 +173,7 @@ document.querySelectorAll('.toggle-btn').forEach(btn => {
     btn.classList.add('active');
     mode = btn.dataset.mode;
     render();
+    if (mode === 'share') animateBars();
   });
 });
 
@@ -182,7 +183,7 @@ function animateBars() {
   const clipPath = el('clipPath', { id: 'bars-reveal' }, defs);
   const clipRect = el('rect', { x: M.left, y: baseline, width: plotW, height: 0 }, clipPath);
   Array.from(svg.querySelectorAll('.seg')).forEach(r => r.setAttribute('clip-path', 'url(#bars-reveal)'));
-  const duration = 950;
+  const duration = 1300;
   const start = performance.now();
   const ease = t => {
     const c1 = 1.4, c3 = c1 + 1;

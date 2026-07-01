@@ -173,7 +173,7 @@ document.querySelectorAll('.toggle-btn').forEach(btn => {
     btn.classList.add('active');
     mode = btn.dataset.mode;
     render();
-    if (mode === 'share') animateBars();
+    animateBars();
   });
 });
 

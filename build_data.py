@@ -32,33 +32,42 @@ YEAR_MIN, YEAR_MAX = 2017, 2025
 # officer left the force. Labeled "Charges dismissed" to avoid that confusion.
 OUTCOME_LABELS = {
     "termination":                              "Termination",
-    "separation":                               "Separation",
+    "separation":                               "Resignation",
+    "resignation":                              "Resignation",
     "demotion":                                 "Demotion",
     "suspension":                               "Suspension",
     "written reprimand":                        "Written reprimand",
-    "non-disciplinary letter of reinstruction": "Letter of reinstruction",
-    "reimbursement":                            "Reimbursement",
-    "written warning":                          "Warning",
-    "verbal warning":                           "Warning",
+    "non-disciplinary letter of reinstruction": "Non-disciplinary reinstruction",
     "dismissal":                                "Charges dismissed",
 }
 
 # Stack order (bottom -> top) and colors, reusing the charges tool's palette.
 GROUP_ORDER = [
-    "Termination", "Separation", "Demotion", "Suspension", "Written reprimand",
-    "Letter of reinstruction", "Reimbursement", "Warning", "Charges dismissed",
+    "Termination", "Resignation", "Demotion", "Suspension", "Written reprimand",
+    "Non-disciplinary reinstruction", "Charges dismissed",
 ]
 GROUP_COLORS = {
-    "Termination":             "#D64D4D",
-    "Separation":              "#7A4520",
-    "Demotion":                "#C45B8A",
-    "Suspension":              "#e56430",
-    "Written reprimand":       "#F4C913",
-    "Letter of reinstruction": "#23685b",
-    "Reimbursement":           "#6A4FC7",
-    "Warning":                 "#a9d2cf",
-    "Charges dismissed":       "#ccd8db",
+    "Termination":                    "#d64d4d",
+    "Resignation":                    "#e56430",
+    "Demotion":                       "#e6a94d",
+    "Suspension":                     "#23685b",
+    "Written reprimand":              "#5fa896",
+    "Non-disciplinary reinstruction": "#a9d2cf",
+    "Charges dismissed":              "#dbe7e3",
 }
+
+
+ID_PAT = re.compile(r"^\s*(\d{2})-\d+")
+
+def year_of(row):
+    """Year for a case: Hearing Date, else Effective date of termination,
+    else the YY- prefix of the report ID (e.g. 17-126 -> 2017)."""
+    for col in ("Hearing Date", "Effective date of termination"):
+        m = re.search(r"(20\d\d)", (row.get(col) or "").strip())
+        if m:
+            return int(m.group(1))
+    p = ID_PAT.match(row.get("Link to original report") or "")
+    return 2000 + int(p.group(1)) if p else None
 
 year_group_cases = defaultdict(lambda: defaultdict(int))
 year_cases = defaultdict(int)
@@ -66,10 +75,9 @@ unmapped = defaultdict(int)
 
 with open(CSV_PATH, newline="", encoding="utf-8-sig") as f:
     for row in csv.DictReader(f):
-        m = re.search(r"(20\d\d)", (row["Hearing Date"] or "").strip())
-        if not m:
+        year = year_of(row)
+        if year is None:
             continue
-        year = int(m.group(1))
         if (YEAR_MIN is not None and year < YEAR_MIN) or (YEAR_MAX is not None and year > YEAR_MAX):
             continue
         year_cases[year] += 1

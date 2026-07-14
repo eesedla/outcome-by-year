@@ -3,10 +3,8 @@ const YEAR_DATA = {"groupOrder":["Termination","Resignation","Demotion","Suspens
 const PARTIAL_YEARS = new Set([]);
 const fmt = n => n.toLocaleString('en-US');
 
-const STAGGER_ORDER = [...YEAR_DATA.groupOrder].reverse();
 const SEG_DURATION = 1000;
-const STAGGER_STEP = 6;
-const TOTAL_DURATION = (STAGGER_ORDER.length - 1) * STAGGER_STEP + SEG_DURATION;
+const STAGGER_STEP = 0;
 
 const ease = t => {
   const c1 = 0.5, c3 = c1 + 1;
@@ -14,12 +12,19 @@ const ease = t => {
 };
 
 let animGen = 0;
- 
+
 // Category totals across all years (hearing-level), for legend ordering/labels
 const catTotals = {};
 YEAR_DATA.groupOrder.forEach(g => catTotals[g] = 0);
 YEAR_DATA.years.forEach(y => y.segments.forEach(s => { catTotals[s.group] += s.count; }));
- 
+
+// Stack/legend order: biggest category first (drawn at the base of the
+// stack), so the categories driving year-to-year variation and the most
+// common outcomes overall are easiest to read.
+const STACK_ORDER = [...YEAR_DATA.groupOrder].sort((a, b) => catTotals[b] - catTotals[a]);
+const STAGGER_ORDER = [...STACK_ORDER].reverse();
+const TOTAL_DURATION = (STAGGER_ORDER.length - 1) * STAGGER_STEP + SEG_DURATION;
+
 // State
 let mode = 'count';     // 'count' | 'share'
 let solo = new Set();   // category names highlighted, or empty
@@ -75,11 +80,10 @@ function render() {
     const cx = M.left + slot * i + slot / 2;
     const x = cx - barW / 2;
  
-    // order segments by groupOrder
-    const segs = YEAR_DATA.groupOrder
+    // order segments biggest-category-first (base of stack)
+    const segs = STACK_ORDER
       .map(g => yObj.segments.find(s => s.group === g))
-      .filter(Boolean)
-      .reverse();
+      .filter(Boolean);
  
     // mentions sum (a hearing can appear in >1 category)
     const ms = segs.reduce((a, s) => a + s.count, 0) || 1;
@@ -168,7 +172,7 @@ function renderLegend() {
   allChip.addEventListener('click', () => { solo.clear(); render(); });
   legend.appendChild(allChip);
 
-  YEAR_DATA.groupOrder.forEach(g => {
+  STACK_ORDER.forEach(g => {
     const chip = document.createElement('div');
     chip.className = 'legend-chip';
     if (solo.size > 0 && !solo.has(g)) chip.classList.add('muted');
